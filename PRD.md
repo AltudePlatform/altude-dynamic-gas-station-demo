@@ -37,8 +37,15 @@ This is a focused demonstration tool designed to illustrate a specific technical
 - **Functionality**: Relays the signed transaction through Altude's gasless service with real API integration
 - **Purpose**: Demonstrates the final relay step that Altude provides using production endpoints
 - **Trigger**: User clicks "Send Gasless via Altude" button (enabled after real signing)
-- **Progression**: Click → Call real Altude API (or mock if no key) → Display transaction signature → Show explorer link
-- **Success criteria**: Transaction signature displayed with Solscan link, automatic fallback to mock if API key not configured
+- **Progression**: Click → Call real Altude API (or mock if no key) → Display transaction signature → Show explorer link → Save to history
+- **Success criteria**: Transaction signature displayed with Solscan link, automatic fallback to mock if API key not configured, transaction saved to persistent history
+
+### Transaction History
+- **Functionality**: Displays a chronological list of all completed gasless transactions with persistent storage
+- **Purpose**: Provides users with a record of their past transactions and demonstrates data persistence
+- **Trigger**: Automatically shown after wallet connection if there is history
+- **Progression**: Transaction completes → Save to persistent storage → Display in history list → Show details (wallet, signature, network, timestamp, explorer link)
+- **Success criteria**: All completed transactions appear in history with accurate details, persist across sessions, can be cleared by user
 
 ### Flow Diagram
 - **Functionality**: Visual representation of the architecture
@@ -54,6 +61,8 @@ This is a focused demonstration tool designed to illustrate a specific technical
 - **Missing Transaction**: Prevent signing if no transaction exists
 - **Missing Signature**: Prevent relay if transaction not signed with real wallet
 - **Environment Configuration**: Graceful handling of missing Dynamic environment ID
+- **Empty History State**: Transaction history shows helpful empty state when no transactions exist
+- **History Persistence**: Transaction history is preserved across browser sessions using persistent storage
 
 ## Design Direction
 The design should feel technical and developer-focused while remaining clean and approachable. It should evoke clarity, precision, and educational value - like reading well-documented code or a technical diagram. The Dynamic wallet integration should feel prominent and clearly branded.

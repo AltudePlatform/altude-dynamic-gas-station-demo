@@ -26,6 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Transaction } from '@solana/web3.js'
+import { useKV } from '@github/spark/hooks'
+import { TransactionHistoryItem } from '@/lib/types'
+import { TransactionHistory } from '@/components/TransactionHistory'
 
 function DemoContent() {
   const { primaryWallet } = useDynamicContext()
@@ -36,6 +39,7 @@ function DemoContent() {
   const [isCreating, setIsCreating] = useState(false)
   const [isSigning, setIsSigning] = useState(false)
   const [isRelaying, setIsRelaying] = useState(false)
+  const [history, setHistory] = useKV<TransactionHistoryItem[]>('transaction-history', [])
 
   const walletConnected = !!primaryWallet
   const walletAddress = primaryWallet?.address || null
@@ -81,13 +85,26 @@ function DemoContent() {
   }
 
   const handleSendGasless = async () => {
-    if (!signedTxBase64) return
+    if (!signedTxBase64 || !walletAddress) return
 
     setIsRelaying(true)
     try {
       const result = await relayViaAltude(signedTxBase64, network)
       setRelayResponse(result)
       toast.success('Transaction relayed via Altude')
+      
+      const historyItem: TransactionHistoryItem = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        timestamp: Date.now(),
+        network,
+        signature: result.signature,
+        explorerUrl: result.explorerUrl,
+        walletAddress,
+        status: result.success ? 'success' : 'failed',
+        message: result.message,
+      }
+      
+      setHistory((currentHistory) => [historyItem, ...(currentHistory || [])])
     } catch (error) {
       toast.error('Failed to relay transaction')
       console.error(error)
@@ -104,26 +121,32 @@ function DemoContent() {
     toast.info(`Switched to ${newNetwork}`)
   }
 
+  const handleClearHistory = () => {
+    setHistory([])
+    toast.success('Transaction history cleared')
+  }
+
   const truncateString = (str: string, start = 20, end = 20) => {
     if (str.length <= start + end) return str
     return `${str.slice(0, start)}...${str.slice(-end)}`
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-5 md:p-8">
-      <Card className="w-full max-w-3xl shadow-lg">
-        <CardHeader className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-3xl md:text-4xl font-bold tracking-tight">
-                Gasless Transaction Demo
-              </CardTitle>
-              <CardDescription className="text-base mt-2">
-                Dynamic Wallet + Altude Relay
-              </CardDescription>
+    <div className="min-h-screen bg-background p-5 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <Card className="w-full shadow-lg">
+          <CardHeader className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-3xl md:text-4xl font-bold tracking-tight">
+                  Gasless Transaction Demo
+                </CardTitle>
+                <CardDescription className="text-base mt-2">
+                  Dynamic Wallet + Altude Relay
+                </CardDescription>
+              </div>
+              <DynamicWidget />
             </div>
-            <DynamicWidget />
-          </div>
 
           {walletConnected && (
             <div className="flex items-center gap-3">
@@ -325,6 +348,11 @@ function DemoContent() {
           </CardContent>
         )}
       </Card>
+
+      {walletConnected && (
+        <TransactionHistory history={history || []} onClear={handleClearHistory} />
+      )}
+    </div>
     </div>
   )
 }
