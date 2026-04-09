@@ -47,15 +47,55 @@ export interface RelayResponse {
 }
 
 export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  const apiKey = import.meta.env.VITE_ALTUDE_API_KEY
   
-  const mockSignature =
-    'mock' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-  
-  return {
-    success: true,
-    signature: mockSignature,
-    explorerUrl: `https://solscan.io/tx/${mockSignature}?cluster=devnet`,
-    message: 'Transaction relayed successfully via Altude (mocked)',
+  if (!apiKey) {
+    console.warn('VITE_ALTUDE_API_KEY not found - using mock response')
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    
+    const mockSignature =
+      'mock' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    
+    return {
+      success: true,
+      signature: mockSignature,
+      explorerUrl: `https://solscan.io/tx/${mockSignature}?cluster=devnet`,
+      message: 'Transaction relayed successfully (mocked - add VITE_ALTUDE_API_KEY to use real API)',
+    }
+  }
+
+  try {
+    const response = await fetch('https://api.altude.io/v1/relay', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        signedTransaction: base64Tx,
+        network: 'devnet',
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `Altude API error: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    return {
+      success: data.success ?? true,
+      signature: data.signature,
+      explorerUrl: `https://solscan.io/tx/${data.signature}?cluster=devnet`,
+      message: data.message || 'Transaction relayed successfully via Altude',
+    }
+  } catch (error) {
+    console.error('Altude relay error:', error)
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to relay transaction via Altude'
+    )
   }
 }

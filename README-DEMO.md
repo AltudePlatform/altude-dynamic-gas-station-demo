@@ -6,7 +6,7 @@ A production-ready demonstration of Dynamic wallet integration with Altude's gas
 
 - 🔐 **Real Dynamic Wallet Integration** - Connect with Phantom, Solflare, and other Solana wallets
 - ⚡ **Gasless Transactions** - Altude covers transaction fees
-- 🎯 **Production Ready** - Uses real Dynamic SDK, ready for Altude API integration
+- 🎯 **Production Ready** - Real Dynamic SDK + Real Altude API integration with automatic fallback
 - 📱 **Mobile Responsive** - Works seamlessly on desktop and mobile devices
 - 🎨 **Modern UI** - Clean, developer-focused interface with JetBrains Mono font
 
@@ -56,14 +56,22 @@ Dynamic Wallet → Sign Transaction → Altude Relay → Solana Blockchain
 
 ## 🔧 Integration with Altude API
 
-The demo currently uses a mock Altude relay. To integrate with the real Altude API:
+The demo includes **real Altude API integration** that automatically activates when you provide an API key.
 
-1. Get your Altude API key from [Altude](https://altude.io)
+### Quick Setup
+
+1. Get your Altude API key from [Altude Dashboard](https://altude.io)
 2. Add it to your `.env`:
    ```bash
    VITE_ALTUDE_API_KEY=your-altude-api-key
    ```
-3. Update `src/lib/solana.ts` to use the real API (see INTEGRATION.md for details)
+3. Restart the dev server - real API calls are now active!
+
+### Testing Without API Key
+
+No API key? No problem! The app automatically falls back to a mock relay service so you can test the entire flow without an Altude account. Just configure your Dynamic environment ID and you're ready to go.
+
+See **[INTEGRATION.md](./INTEGRATION.md)** for detailed API documentation.
 
 ## 📚 Documentation
 

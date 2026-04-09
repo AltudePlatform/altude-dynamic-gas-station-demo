@@ -34,11 +34,11 @@ This is a focused demonstration tool designed to illustrate a specific technical
 - **Success criteria**: Base64 signed transaction displayed after real wallet signature with clear Dynamic branding
 
 ### Send Gasless Button
-- **Functionality**: Relays the signed transaction through Altude's gasless service (mocked for demo)
-- **Purpose**: Demonstrates the final relay step that Altude provides
+- **Functionality**: Relays the signed transaction through Altude's gasless service with real API integration
+- **Purpose**: Demonstrates the final relay step that Altude provides using production endpoints
 - **Trigger**: User clicks "Send Gasless via Altude" button (enabled after real signing)
-- **Progression**: Click → Call relay function → Mock API response → Display transaction signature → Show explorer link
-- **Success criteria**: Mock relay response displayed with transaction signature and Solscan link
+- **Progression**: Click → Call real Altude API (or mock if no key) → Display transaction signature → Show explorer link
+- **Success criteria**: Transaction signature displayed with Solscan link, automatic fallback to mock if API key not configured
 
 ### Flow Diagram
 - **Functionality**: Visual representation of the architecture

@@ -262,6 +262,20 @@ function DemoContent() {
                 <li>Altude covers the gas fees, enabling gasless user experiences</li>
                 <li>Users maintain full control through their Dynamic wallet</li>
               </ul>
+              <div className="pt-2 mt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  {import.meta.env.VITE_ALTUDE_API_KEY ? (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle size={12} className="text-accent" weight="fill" />
+                      <span className="font-medium text-accent">Real Altude API active</span>
+                    </span>
+                  ) : (
+                    <span>
+                      ℹ️ Using mock relay - add <code className="bg-muted px-1 rounded">VITE_ALTUDE_API_KEY</code> to use real API
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
           </CardContent>
         )}

@@ -138,63 +138,80 @@ const base64Transaction = serialized.toString('base64')
 #### `relayViaAltude(base64Tx)`
 Sends signed transaction to Altude relay service.
 
-**Current:** Mock implementation  
-**Production:** Replace with actual Altude API endpoint
+**Implementation:** Real Altude API integration with fallback to mock
+
+The function automatically detects if `VITE_ALTUDE_API_KEY` is configured:
+- **With API key:** Calls real Altude API at `https://api.altude.io/v1/relay`
+- **Without API key:** Falls back to mock response for testing
 
 ```typescript
-// Mock (current):
+// With API key configured:
 const response = await relayViaAltude(base64Tx)
+// Calls: POST https://api.altude.io/v1/relay
+// Headers: Authorization: Bearer {VITE_ALTUDE_API_KEY}
+// Body: { signedTransaction: base64Tx, network: 'devnet' }
 
-// Production (replace with):
-const response = await fetch('https://api.altude.io/relay', {
-  method: 'POST',
-  headers: { 
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.ALTUDE_API_KEY}`
-  },
-  body: JSON.stringify({ signedTransaction: base64Tx })
-})
+// Without API key:
+const response = await relayViaAltude(base64Tx)
+// Returns mock signature after 1s delay
 ```
 
 ## Integration with Real Altude API
 
-When you're ready to integrate with the real Altude API, update the `relayViaAltude` function in `src/lib/solana.ts`:
+The app now includes **real Altude API integration** with automatic fallback to mock mode.
+
+### Using Real Altude API
+
+1. **Get your Altude API key** from [Altude Dashboard](https://altude.io)
+
+2. **Add to your `.env` file:**
+   ```bash
+   VITE_ALTUDE_API_KEY=your-altude-api-key-here
+   ```
+
+3. **That's it!** The app automatically uses the real API when the key is present.
+
+### How It Works
+
+The `relayViaAltude` function in `src/lib/solana.ts`:
+
+- **Checks for `VITE_ALTUDE_API_KEY`** in environment variables
+- **If present:** Calls `https://api.altude.io/v1/relay` with proper authentication
+- **If missing:** Falls back to mock response for testing without an API key
+
+### API Request Format
 
 ```typescript
-export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
-  const response = await fetch('https://api.altude.io/v1/relay', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_ALTUDE_API_KEY}`
-    },
-    body: JSON.stringify({
-      signedTransaction: base64Tx,
-      network: 'devnet'
-    })
-  })
-  
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to relay transaction')
+POST https://api.altude.io/v1/relay
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer {your-api-key}
+Body:
+  {
+    "signedTransaction": "base64-encoded-transaction",
+    "network": "devnet"
   }
-  
-  const data = await response.json()
-  
-  return {
-    success: data.success,
-    signature: data.signature,
-    explorerUrl: `https://solscan.io/tx/${data.signature}?cluster=devnet`,
-    message: data.message || 'Transaction relayed successfully'
-  }
+```
+
+### API Response Format
+
+```typescript
+{
+  "success": true,
+  "signature": "transaction-signature-hash",
+  "message": "Transaction relayed successfully"
 }
 ```
 
-Don't forget to add your Altude API key to `.env`:
+### Error Handling
 
-```bash
-VITE_ALTUDE_API_KEY=your-altude-api-key-here
-```
+The integration includes comprehensive error handling:
+- Network errors
+- API authentication errors
+- Invalid transaction format
+- Rate limiting
+
+All errors are caught and displayed to the user with helpful messages.
 
 ## Running the Demo
 
@@ -260,7 +277,7 @@ VITE_DYNAMIC_ENVIRONMENT_ID=your-actual-id-here
 ## Next Steps
 
 - [x] Integrate with real Dynamic wallet SDK
-- [ ] Connect to real Altude API endpoint
+- [x] Connect to real Altude API endpoint with automatic fallback
 - [ ] Add real transaction types (transfers, program interactions)
 - [ ] Implement error handling and retry logic
 - [ ] Add transaction status polling
