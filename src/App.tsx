@@ -16,11 +16,20 @@ import {
   relayViaAltude,
   type CreateTransactionResult,
   type RelayResponse,
+  type SolanaNetwork,
 } from '@/lib/solana'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Transaction } from '@solana/web3.js'
 
 function DemoContent() {
   const { primaryWallet } = useDynamicContext()
+  const [network, setNetwork] = useState<SolanaNetwork>('devnet')
   const [transaction, setTransaction] = useState<CreateTransactionResult | null>(null)
   const [signedTxBase64, setSignedTxBase64] = useState<string | null>(null)
   const [relayResponse, setRelayResponse] = useState<RelayResponse | null>(null)
@@ -36,11 +45,11 @@ function DemoContent() {
 
     setIsCreating(true)
     try {
-      const result = await createMemoTransaction(walletAddress)
+      const result = await createMemoTransaction(walletAddress, network)
       setTransaction(result)
       setSignedTxBase64(null)
       setRelayResponse(null)
-      toast.success('Transaction created successfully')
+      toast.success(`Transaction created on ${network}`)
     } catch (error) {
       toast.error('Failed to create transaction')
       console.error(error)
@@ -76,7 +85,7 @@ function DemoContent() {
 
     setIsRelaying(true)
     try {
-      const result = await relayViaAltude(signedTxBase64)
+      const result = await relayViaAltude(signedTxBase64, network)
       setRelayResponse(result)
       toast.success('Transaction relayed via Altude')
     } catch (error) {
@@ -85,6 +94,14 @@ function DemoContent() {
     } finally {
       setIsRelaying(false)
     }
+  }
+
+  const handleNetworkChange = (newNetwork: SolanaNetwork) => {
+    setNetwork(newNetwork)
+    setTransaction(null)
+    setSignedTxBase64(null)
+    setRelayResponse(null)
+    toast.info(`Switched to ${newNetwork}`)
   }
 
   const truncateString = (str: string, start = 20, end = 20) => {
@@ -107,6 +124,31 @@ function DemoContent() {
             </div>
             <DynamicWidget />
           </div>
+
+          {walletConnected && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-muted-foreground">Network:</label>
+              <Select value={network} onValueChange={handleNetworkChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="devnet">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">Dev</Badge>
+                      <span>Devnet</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="mainnet-beta">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">Live</Badge>
+                      <span>Mainnet</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {!walletConnected ? (
             <div className="pt-6">
@@ -262,7 +304,7 @@ function DemoContent() {
                 <li>Altude covers the gas fees, enabling gasless user experiences</li>
                 <li>Users maintain full control through their Dynamic wallet</li>
               </ul>
-              <div className="pt-2 mt-2 border-t border-border">
+              <div className="pt-2 mt-2 border-t border-border flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   {import.meta.env.VITE_ALTUDE_API_KEY ? (
                     <span className="flex items-center gap-1">
@@ -275,6 +317,9 @@ function DemoContent() {
                     </span>
                   )}
                 </p>
+                <Badge variant="outline" className={network === 'mainnet-beta' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-accent/10 text-accent border-accent/30'}>
+                  {network === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}
+                </Badge>
               </div>
             </div>
           </CardContent>

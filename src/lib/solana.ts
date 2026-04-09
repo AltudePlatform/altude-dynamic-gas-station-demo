@@ -7,7 +7,11 @@ import {
 } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 
-export const connection = new Connection(clusterApiUrl('devnet'), 'confirmed')
+export type SolanaNetwork = 'devnet' | 'mainnet-beta'
+
+export function getConnection(network: SolanaNetwork): Connection {
+  return new Connection(clusterApiUrl(network), 'confirmed')
+}
 
 export interface CreateTransactionResult {
   transaction: Transaction
@@ -15,11 +19,13 @@ export interface CreateTransactionResult {
 }
 
 export async function createMemoTransaction(
-  walletPublicKey: string
+  walletPublicKey: string,
+  network: SolanaNetwork = 'devnet'
 ): Promise<CreateTransactionResult> {
+  const connection = getConnection(network)
   const feePayer = new PublicKey(walletPublicKey)
   
-  const memoText = 'Gasless transaction via Altude relay'
+  const memoText = `Gasless transaction via Altude relay on ${network}`
   const encoder = new TextEncoder()
   const memoData = encoder.encode(memoText)
   
@@ -46,7 +52,17 @@ export interface RelayResponse {
   message: string
 }
 
-export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
+function getExplorerUrl(signature: string, network: SolanaNetwork): string {
+  if (network === 'mainnet-beta') {
+    return `https://solscan.io/tx/${signature}`
+  }
+  return `https://solscan.io/tx/${signature}?cluster=devnet`
+}
+
+export async function relayViaAltude(
+  base64Tx: string,
+  network: SolanaNetwork = 'devnet'
+): Promise<RelayResponse> {
   const apiKey = import.meta.env.VITE_ALTUDE_API_KEY
   
   if (!apiKey) {
@@ -59,8 +75,8 @@ export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
     return {
       success: true,
       signature: mockSignature,
-      explorerUrl: `https://solscan.io/tx/${mockSignature}?cluster=devnet`,
-      message: 'Transaction relayed successfully (mocked - add VITE_ALTUDE_API_KEY to use real API)',
+      explorerUrl: getExplorerUrl(mockSignature, network),
+      message: `Transaction relayed successfully on ${network} (mocked - add VITE_ALTUDE_API_KEY to use real API)`,
     }
   }
 
@@ -73,7 +89,7 @@ export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
       },
       body: JSON.stringify({
         signedTransaction: base64Tx,
-        network: 'devnet',
+        network: network === 'mainnet-beta' ? 'mainnet' : 'devnet',
       }),
     })
 
@@ -87,8 +103,8 @@ export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
     return {
       success: data.success ?? true,
       signature: data.signature,
-      explorerUrl: `https://solscan.io/tx/${data.signature}?cluster=devnet`,
-      message: data.message || 'Transaction relayed successfully via Altude',
+      explorerUrl: getExplorerUrl(data.signature, network),
+      message: data.message || `Transaction relayed successfully via Altude on ${network}`,
     }
   } catch (error) {
     console.error('Altude relay error:', error)
