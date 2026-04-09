@@ -1,6 +1,6 @@
 # Planning Guide
 
-A minimal demonstration web application that showcases how third-party wallet providers (like Dynamic) can work alongside Altude's gasless relay service for Solana transactions.
+A minimal demonstration web application that showcases how Dynamic wallet provider integrates with Altude's gasless relay service for Solana transactions.
 
 **Experience Qualities**:
 1. **Educational** - Clearly demonstrates the separation of concerns between wallet signing and gasless relay
@@ -8,46 +8,54 @@ A minimal demonstration web application that showcases how third-party wallet pr
 3. **Developer-focused** - Simple, readable code that serves as a reference implementation
 
 **Complexity Level**: Micro Tool (single-purpose application)
-This is a focused demonstration tool designed to illustrate a specific technical flow with three discrete steps.
+This is a focused demonstration tool designed to illustrate a specific technical flow starting with wallet connection, followed by three discrete transaction steps.
 
 ## Essential Features
 
+### Connect Wallet Button
+- **Functionality**: Connects to a Dynamic wallet (simulated for demo purposes)
+- **Purpose**: Demonstrates the initial step of wallet authentication
+- **Trigger**: User clicks "Connect Wallet" button on initial load
+- **Progression**: Click → Simulate wallet connection → Display wallet address → Enable transaction flow
+- **Success criteria**: Wallet connected state shown with address display
+
 ### Create Transaction Button
-- **Functionality**: Generates a simple Solana devnet transaction (memo instruction)
+- **Functionality**: Generates a simple Solana devnet transaction (memo instruction) using the connected wallet's public key
 - **Purpose**: Demonstrates transaction creation separate from signing and relaying
-- **Trigger**: User clicks "Create Transaction" button
+- **Trigger**: User clicks "Create Transaction" button (enabled after wallet connection)
 - **Progression**: Click → Generate transaction with memo → Display confirmation → Enable sign button
 - **Success criteria**: Transaction object created and status displayed
 
 ### Sign Transaction Button
-- **Functionality**: Signs the transaction using a simulated keypair (representing third-party wallet behavior)
+- **Functionality**: Signs the transaction using the Dynamic wallet adapter
 - **Purpose**: Shows where wallet providers like Dynamic fit into the flow
-- **Trigger**: User clicks "Sign Transaction" button (enabled after transaction creation)
-- **Progression**: Click → Simulate wallet signing → Serialize to base64 → Display truncated signed transaction → Enable send button
-- **Success criteria**: Base64 signed transaction displayed with clear comment about production wallet integration
+- **Trigger**: User clicks "Sign with Dynamic Wallet" button (enabled after transaction creation)
+- **Progression**: Click → Dynamic wallet signs → Serialize to base64 → Display truncated signed transaction → Enable send button
+- **Success criteria**: Base64 signed transaction displayed with clear Dynamic wallet branding
 
 ### Send Gasless Button
 - **Functionality**: Relays the signed transaction through Altude's gasless service (mocked)
 - **Purpose**: Demonstrates the final relay step that Altude provides
-- **Trigger**: User clicks "Send Gasless" button (enabled after signing)
+- **Trigger**: User clicks "Send Gasless via Altude" button (enabled after signing)
 - **Progression**: Click → Call relay function → Mock API response → Display transaction signature → Show explorer link
 - **Success criteria**: Mock relay response displayed with transaction signature and Solscan link
 
 ### Flow Diagram
 - **Functionality**: Visual representation of the architecture
 - **Purpose**: Clarifies role separation between components
-- **Trigger**: Always visible at top of interface
-- **Progression**: Static display showing: Wallet → Signed Transaction → Altude → Blockchain
+- **Trigger**: Visible after wallet connection
+- **Progression**: Static display showing: Dynamic → Sign Tx → Altude → Solana
 - **Success criteria**: Clear visual distinction between wallet provider and Altude roles
 
 ## Edge Case Handling
+- **Wallet Not Connected**: All transaction buttons disabled until wallet connects
 - **Sequential Flow Enforcement**: Buttons disabled until previous steps complete
-- **Reset Capability**: Clear way to restart the flow
+- **Disconnect Capability**: Clear way to disconnect wallet and reset the flow
 - **Missing Transaction**: Prevent signing if no transaction exists
 - **Missing Signature**: Prevent relay if transaction not signed
 
 ## Design Direction
-The design should feel technical and developer-focused while remaining clean and approachable. It should evoke clarity, precision, and educational value - like reading well-documented code or a technical diagram.
+The design should feel technical and developer-focused while remaining clean and approachable. It should evoke clarity, precision, and educational value - like reading well-documented code or a technical diagram. The Dynamic wallet integration should feel prominent and clearly branded.
 
 ## Color Selection
 
@@ -87,18 +95,21 @@ Animations should be minimal and functional, reinforcing state changes rather th
   - Custom flow diagram component using simple div/spans with connecting arrows
   - Code block styled areas for displaying transaction data with monospace font
   - Step indicator system showing completed/active/pending states
+  - Wallet connection state display with address truncation
   
 - **States**:
   - Buttons: Vibrant cyan for enabled, muted gray for disabled, slight scale on hover
   - Transaction displays: Light code-block background with syntax-like highlighting
   - Status indicators: Green for success, blue for in-progress, gray for pending
+  - Wallet connected: Primary colored badge with address display
   
 - **Icon Selection**:
   - ArrowRight: Flow progression in diagram
   - CheckCircle: Completed steps
-  - Wallet: Wallet provider representation
+  - Wallet: Dynamic wallet representation
   - Lightning: Gasless/relay indicator
   - Globe: Blockchain representation
+  - Power: Disconnect wallet action
   
 - **Spacing**:
   - Card padding: 32px (p-8)

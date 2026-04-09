@@ -1,12 +1,12 @@
 import {
   Connection,
-  Keypair,
   PublicKey,
   Transaction,
   TransactionInstruction,
   clusterApiUrl,
 } from '@solana/web3.js'
 import { Buffer } from 'buffer'
+import type { WalletAdapter } from './dynamic-wallet'
 
 export const connection = new Connection(clusterApiUrl('devnet'), 'confirmed')
 
@@ -15,8 +15,10 @@ export interface CreateTransactionResult {
   feePayer: PublicKey
 }
 
-export async function createMemoTransaction(): Promise<CreateTransactionResult> {
-  const feePayer = Keypair.generate()
+export async function createMemoTransaction(
+  walletPublicKey: string
+): Promise<CreateTransactionResult> {
+  const feePayer = new PublicKey(walletPublicKey)
   
   const memoText = 'Gasless transaction via Altude relay'
   const encoder = new TextEncoder()
@@ -30,12 +32,12 @@ export async function createMemoTransaction(): Promise<CreateTransactionResult> 
 
   const transaction = new Transaction()
   transaction.add(memoInstruction)
-  transaction.feePayer = feePayer.publicKey
+  transaction.feePayer = feePayer
   
   const { blockhash } = await connection.getLatestBlockhash()
   transaction.recentBlockhash = blockhash
 
-  return { transaction, feePayer: feePayer.publicKey }
+  return { transaction, feePayer }
 }
 
 export interface SignTransactionResult {
@@ -44,17 +46,16 @@ export interface SignTransactionResult {
 }
 
 export async function signTransaction(
-  transaction: Transaction
+  transaction: Transaction,
+  wallet: WalletAdapter
 ): Promise<SignTransactionResult> {
-  const simulatedWalletKeypair = Keypair.generate()
+  const signedTransaction = await wallet.signTransaction(transaction)
   
-  transaction.sign(simulatedWalletKeypair)
-  
-  const serialized = transaction.serialize()
+  const serialized = signedTransaction.serialize()
   const base64Transaction = serialized.toString('base64')
   
   return {
-    signedTransaction: transaction,
+    signedTransaction,
     base64Transaction,
   }
 }
@@ -76,6 +77,6 @@ export async function relayViaAltude(base64Tx: string): Promise<RelayResponse> {
     success: true,
     signature: mockSignature,
     explorerUrl: `https://solscan.io/tx/${mockSignature}?cluster=devnet`,
-    message: 'Transaction relayed successfully (mocked)',
+    message: 'Transaction relayed successfully via Altude (mocked)',
   }
 }
