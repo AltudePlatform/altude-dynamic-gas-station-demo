@@ -1,58 +1,59 @@
 # Planning Guide
 
-A minimal demonstration web application that showcases how Dynamic wallet provider integrates with Altude's gasless relay service for Solana transactions.
+A demonstration web application that showcases how the Dynamic wallet SDK integrates with Altude's gasless relay service for Solana transactions.
 
 **Experience Qualities**:
-1. **Educational** - Clearly demonstrates the separation of concerns between wallet signing and gasless relay
-2. **Transparent** - Shows each step of the transaction flow with visible feedback
-3. **Developer-focused** - Simple, readable code that serves as a reference implementation
+1. **Educational** - Clearly demonstrates the separation of concerns between wallet signing and gasless relay with real Dynamic SDK integration
+2. **Transparent** - Shows each step of the transaction flow with visible feedback and actual wallet connection
+3. **Developer-focused** - Production-ready code using real Dynamic SDK that serves as a reference implementation
 
 **Complexity Level**: Micro Tool (single-purpose application)
-This is a focused demonstration tool designed to illustrate a specific technical flow starting with wallet connection, followed by three discrete transaction steps.
+This is a focused demonstration tool designed to illustrate a specific technical flow using the real Dynamic wallet SDK for Solana, followed by three discrete transaction steps.
 
 ## Essential Features
 
-### Connect Wallet Button
-- **Functionality**: Connects to a Dynamic wallet (simulated for demo purposes)
-- **Purpose**: Demonstrates the initial step of wallet authentication
-- **Trigger**: User clicks "Connect Wallet" button on initial load
-- **Progression**: Click → Simulate wallet connection → Display wallet address → Enable transaction flow
-- **Success criteria**: Wallet connected state shown with address display
+### Dynamic Wallet Connection
+- **Functionality**: Connects to real Solana wallets through Dynamic's SDK (Phantom, Solflare, etc.)
+- **Purpose**: Demonstrates production wallet authentication with Dynamic
+- **Trigger**: User clicks Dynamic's pre-built wallet connection widget
+- **Progression**: Click widget → Choose wallet provider → Authenticate → Display wallet address → Enable transaction flow
+- **Success criteria**: Real wallet connected state shown with actual address from Dynamic
 
 ### Create Transaction Button
-- **Functionality**: Generates a simple Solana devnet transaction (memo instruction) using the connected wallet's public key
+- **Functionality**: Generates a simple Solana devnet transaction (memo instruction) using the connected wallet's real public key
 - **Purpose**: Demonstrates transaction creation separate from signing and relaying
-- **Trigger**: User clicks "Create Transaction" button (enabled after wallet connection)
+- **Trigger**: User clicks "Create Transaction" button (enabled after Dynamic wallet connection)
 - **Progression**: Click → Generate transaction with memo → Display confirmation → Enable sign button
-- **Success criteria**: Transaction object created and status displayed
+- **Success criteria**: Transaction object created with real wallet address and status displayed
 
 ### Sign Transaction Button
-- **Functionality**: Signs the transaction using the Dynamic wallet adapter
-- **Purpose**: Shows where wallet providers like Dynamic fit into the flow
+- **Functionality**: Signs the transaction using the real Dynamic wallet connector
+- **Purpose**: Shows how Dynamic SDK handles transaction signing in production
 - **Trigger**: User clicks "Sign with Dynamic Wallet" button (enabled after transaction creation)
-- **Progression**: Click → Dynamic wallet signs → Serialize to base64 → Display truncated signed transaction → Enable send button
-- **Success criteria**: Base64 signed transaction displayed with clear Dynamic wallet branding
+- **Progression**: Click → Dynamic prompts user in their wallet → User approves → Serialize to base64 → Display truncated signed transaction → Enable send button
+- **Success criteria**: Base64 signed transaction displayed after real wallet signature with clear Dynamic branding
 
 ### Send Gasless Button
-- **Functionality**: Relays the signed transaction through Altude's gasless service (mocked)
+- **Functionality**: Relays the signed transaction through Altude's gasless service (mocked for demo)
 - **Purpose**: Demonstrates the final relay step that Altude provides
-- **Trigger**: User clicks "Send Gasless via Altude" button (enabled after signing)
+- **Trigger**: User clicks "Send Gasless via Altude" button (enabled after real signing)
 - **Progression**: Click → Call relay function → Mock API response → Display transaction signature → Show explorer link
 - **Success criteria**: Mock relay response displayed with transaction signature and Solscan link
 
 ### Flow Diagram
 - **Functionality**: Visual representation of the architecture
-- **Purpose**: Clarifies role separation between components
+- **Purpose**: Clarifies role separation between Dynamic and Altude components
 - **Trigger**: Visible after wallet connection
 - **Progression**: Static display showing: Dynamic → Sign Tx → Altude → Solana
-- **Success criteria**: Clear visual distinction between wallet provider and Altude roles
+- **Success criteria**: Clear visual distinction between wallet provider (Dynamic) and Altude relay roles
 
 ## Edge Case Handling
-- **Wallet Not Connected**: All transaction buttons disabled until wallet connects
+- **Wallet Not Connected**: All transaction buttons disabled until Dynamic wallet connects
 - **Sequential Flow Enforcement**: Buttons disabled until previous steps complete
-- **Disconnect Capability**: Clear way to disconnect wallet and reset the flow
+- **Dynamic Widget Integration**: Uses Dynamic's pre-built widget for connection/disconnect
 - **Missing Transaction**: Prevent signing if no transaction exists
-- **Missing Signature**: Prevent relay if transaction not signed
+- **Missing Signature**: Prevent relay if transaction not signed with real wallet
+- **Environment Configuration**: Graceful handling of missing Dynamic environment ID
 
 ## Design Direction
 The design should feel technical and developer-focused while remaining clean and approachable. It should evoke clarity, precision, and educational value - like reading well-documented code or a technical diagram. The Dynamic wallet integration should feel prominent and clearly branded.

@@ -6,7 +6,6 @@ import {
   clusterApiUrl,
 } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import type { WalletAdapter } from './dynamic-wallet'
 
 export const connection = new Connection(clusterApiUrl('devnet'), 'confirmed')
 
@@ -38,26 +37,6 @@ export async function createMemoTransaction(
   transaction.recentBlockhash = blockhash
 
   return { transaction, feePayer }
-}
-
-export interface SignTransactionResult {
-  signedTransaction: Transaction
-  base64Transaction: string
-}
-
-export async function signTransaction(
-  transaction: Transaction,
-  wallet: WalletAdapter
-): Promise<SignTransactionResult> {
-  const signedTransaction = await wallet.signTransaction(transaction)
-  
-  const serialized = signedTransaction.serialize()
-  const base64Transaction = serialized.toString('base64')
-  
-  return {
-    signedTransaction,
-    base64Transaction,
-  }
 }
 
 export interface RelayResponse {

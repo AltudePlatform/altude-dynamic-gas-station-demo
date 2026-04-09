@@ -3,52 +3,33 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ArrowRight, Wallet, Lightning, Globe, CheckCircle, Power } from '@phosphor-icons/react'
+import { ArrowRight, Wallet, Lightning, Globe, CheckCircle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import {
+  DynamicContextProvider,
+  DynamicWidget,
+  useDynamicContext,
+} from '@dynamic-labs/sdk-react-core'
+import { SolanaWalletConnectors } from '@dynamic-labs/solana'
+import {
   createMemoTransaction,
-  signTransaction,
   relayViaAltude,
   type CreateTransactionResult,
   type RelayResponse,
 } from '@/lib/solana'
-import { dynamicWallet } from '@/lib/dynamic-wallet'
+import { Transaction } from '@solana/web3.js'
 
-function App() {
-  const [walletConnected, setWalletConnected] = useState(false)
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+function DemoContent() {
+  const { primaryWallet } = useDynamicContext()
   const [transaction, setTransaction] = useState<CreateTransactionResult | null>(null)
   const [signedTxBase64, setSignedTxBase64] = useState<string | null>(null)
   const [relayResponse, setRelayResponse] = useState<RelayResponse | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isSigning, setIsSigning] = useState(false)
   const [isRelaying, setIsRelaying] = useState(false)
 
-  const handleConnectWallet = async () => {
-    setIsConnecting(true)
-    try {
-      await dynamicWallet.connect()
-      setWalletConnected(true)
-      setWalletAddress(dynamicWallet.publicKey)
-      toast.success('Wallet connected successfully')
-    } catch (error) {
-      toast.error('Failed to connect wallet')
-      console.error(error)
-    } finally {
-      setIsConnecting(false)
-    }
-  }
-
-  const handleDisconnectWallet = async () => {
-    await dynamicWallet.disconnect()
-    setWalletConnected(false)
-    setWalletAddress(null)
-    setTransaction(null)
-    setSignedTxBase64(null)
-    setRelayResponse(null)
-    toast.success('Wallet disconnected')
-  }
+  const walletConnected = !!primaryWallet
+  const walletAddress = primaryWallet?.address || null
 
   const handleCreateTransaction = async () => {
     if (!walletAddress) return
@@ -69,12 +50,17 @@ function App() {
   }
 
   const handleSignTransaction = async () => {
-    if (!transaction) return
+    if (!transaction || !primaryWallet) return
 
     setIsSigning(true)
     try {
-      const result = await signTransaction(transaction.transaction, dynamicWallet)
-      setSignedTxBase64(result.base64Transaction)
+      const solanaConnector = primaryWallet.connector as any
+      const signedTx = await solanaConnector.signTransaction(transaction.transaction)
+      
+      const serialized = signedTx.serialize()
+      const base64Transaction = serialized.toString('base64')
+      
+      setSignedTxBase64(base64Transaction)
       setRelayResponse(null)
       toast.success('Transaction signed by Dynamic wallet')
     } catch (error) {
@@ -119,17 +105,7 @@ function App() {
                 Dynamic Wallet + Altude Relay
               </CardDescription>
             </div>
-            {walletConnected && (
-              <Button
-                onClick={handleDisconnectWallet}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <Power size={16} />
-                Disconnect
-              </Button>
-            )}
+            <DynamicWidget />
           </div>
 
           {!walletConnected ? (
@@ -141,15 +117,9 @@ function App() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Connect with Dynamic wallet to start the gasless transaction flow
                   </p>
-                  <Button
-                    onClick={handleConnectWallet}
-                    disabled={isConnecting}
-                    size="lg"
-                    className="gap-2"
-                  >
-                    <Wallet size={20} />
-                    {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Click the "Connect Wallet" button above
+                  </p>
                 </div>
               </div>
             </div>
@@ -297,6 +267,19 @@ function App() {
         )}
       </Card>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <DynamicContextProvider
+      settings={{
+        environmentId: import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID || 'test-environment-id',
+        walletConnectors: [SolanaWalletConnectors],
+      }}
+    >
+      <DemoContent />
+    </DynamicContextProvider>
   )
 }
 
