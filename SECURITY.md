@@ -1,31 +1,28 @@
-Thanks for helping make GitHub safe for everyone.
-
-# Security
-
-GitHub takes the security of our software products and services seriously, including all of the open source code repositories managed through our GitHub organizations, such as [GitHub](https://github.com/GitHub).
-
-Even though [open source repositories are outside of the scope of our bug bounty program](https://bounty.github.com/index.html#scope) and therefore not eligible for bounty rewards, we will ensure that your finding gets passed along to the appropriate maintainers for remediation. 
+# Security Policy
 
 ## Reporting Security Issues
 
-If you believe you have found a security vulnerability in any GitHub-owned repository, please report it to us through coordinated disclosure.
+If you believe you have found a security vulnerability in this repository, please report it through coordinated disclosure.
 
 **Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-Instead, please send an email to opensource-security[@]github.com.
+Instead, please email [andrew@altude.so](mailto:andrew@altude.so).
 
-Please include as much of the information listed below as you can to help us better understand and resolve the issue:
+Include as much of the following as you can:
 
-  * The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+- Type of issue (e.g., injection, XSS, key exposure)
+- Full paths of affected source files
+- Steps to reproduce
+- Proof-of-concept or exploit code (if possible)
+- Impact assessment
 
-This information will help us triage your report more quickly.
+## Security Considerations
 
-## Policy
+This is a **demo application** intended as a reference implementation. If adapting this code for production:
 
-See [GitHub's Safe Harbor Policy](https://docs.github.com/en/site-policy/security-policies/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
+- Never commit `.env` files or API keys to version control
+- Validate all transaction parameters server-side before relay
+- Use environment-specific Dynamic project settings (separate dev/prod)
+- Monitor relay usage and implement rate limiting
+- Review [Dynamic's security docs](https://docs.dynamic.xyz) for wallet integration best practices
+

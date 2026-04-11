@@ -1,10 +1,8 @@
 import { TransactionHistoryItem } from '@/lib/types'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ArrowRight, CheckCircle, XCircle, Trash } from '@phosphor-icons/react'
-import { Separator } from '@/components/ui/separator'
+import { CheckCircle, XCircle, Trash, ArrowSquareOut } from '@phosphor-icons/react'
 
 interface TransactionHistoryProps {
   history: TransactionHistoryItem[]
@@ -12,141 +10,90 @@ interface TransactionHistoryProps {
 }
 
 export function TransactionHistory({ history, onClear }: TransactionHistoryProps) {
-  const truncateString = (str: string, start = 12, end = 12) => {
-    if (str.length <= start + end) return str
-    return `${str.slice(0, start)}...${str.slice(-end)}`
-  }
+  const truncate = (s: string, n = 8) => s.length <= n * 2 + 3 ? s : `${s.slice(0, n)}...${s.slice(-n)}`
 
   const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
+    const diffMs = Date.now() - timestamp
+    const mins = Math.floor(diffMs / 60000)
+    const hrs = Math.floor(diffMs / 3600000)
+    const days = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-    })
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    if (hrs < 24) return `${hrs}h ago`
+    if (days < 7) return `${days}d ago`
+
+    return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   if (history.length === 0) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-xl">Transaction History</CardTitle>
-          <CardDescription>Past gasless transactions will appear here</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4">
-              <CheckCircle size={32} className="text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">No transactions yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Complete a gasless transaction to see it here
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-lg border border-border bg-card px-8 py-10 text-center">
+        <p className="text-sm text-muted-foreground">No transactions yet</p>
+      </div>
     )
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-xl">Transaction History</CardTitle>
-            <CardDescription>
-              {history.length} transaction{history.length !== 1 ? 's' : ''} relayed
-            </CardDescription>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={onClear}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash size={16} className="mr-2" />
-            Clear All
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px] pr-4">
-          <div className="space-y-3">
-            {history.map((item, index) => (
-              <div key={item.id}>
-                <div className="p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {item.status === 'success' ? (
-                        <CheckCircle size={20} weight="fill" className="text-accent" />
-                      ) : (
-                        <XCircle size={20} weight="fill" className="text-destructive" />
-                      )}
-                      <Badge 
-                        variant="outline" 
-                        className={
-                          item.network === 'mainnet-beta' 
-                            ? 'bg-primary/10 text-primary border-primary/30' 
-                            : 'bg-accent/10 text-accent border-accent/30'
-                        }
-                      >
-                        {item.network === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(item.timestamp)}
-                    </span>
-                  </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          History ({history.length})
+        </h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          className="text-muted-foreground hover:text-destructive text-xs"
+        >
+          <Trash size={14} className="mr-1.5" />
+          Clear
+        </Button>
+      </div>
 
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Wallet</p>
-                      <p className="text-xs font-mono text-foreground">
-                        {truncateString(item.walletAddress, 8, 8)}
-                      </p>
-                    </div>
+      <ScrollArea className="h-[320px]">
+        <div className="space-y-3">
+          {history.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-5 px-6 py-5 rounded-lg border border-border bg-card"
+            >
+              {item.status === 'success' ? (
+                <CheckCircle size={18} weight="fill" className="text-primary shrink-0" />
+              ) : (
+                <XCircle size={18} weight="fill" className="text-destructive shrink-0" />
+              )}
 
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Signature</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-mono text-foreground flex-1">
-                          {truncateString(item.signature, 10, 10)}
-                        </p>
-                        <a
-                          href={item.explorerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-accent hover:underline inline-flex items-center gap-1 shrink-0"
-                        >
-                          View <ArrowRight size={12} />
-                        </a>
-                      </div>
-                    </div>
-
-                    {item.message && (
-                      <p className="text-xs text-muted-foreground pt-1">
-                        {item.message}
-                      </p>
-                    )}
-                  </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <code className="text-sm text-foreground truncate">
+                    {truncate(item.signature, 10)}
+                  </code>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {item.network === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}
+                  </Badge>
                 </div>
-                {index < history.length - 1 && <Separator className="my-3" />}
+                {item.message && (
+                  <p className="text-xs text-muted-foreground truncate mt-1">{item.message}</p>
+                )}
               </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground">{formatDate(item.timestamp)}</span>
+                <a
+                  href={item.explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors p-1"
+                  aria-label="View on explorer"
+                >
+                  <ArrowSquareOut size={14} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   )
 }

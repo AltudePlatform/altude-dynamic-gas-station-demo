@@ -1,89 +1,27 @@
-# Gasless Transaction Demo - Altude Integration
+# Integration Guide
 
-A demonstration of how the Dynamic wallet provider integrates with Altude's gasless relay service for Solana transactions.
-
-## Overview
-
-This demo showcases the complete flow of a gasless Solana transaction:
-
-```
-Dynamic Wallet → Signed Transaction → Altude Relay → Blockchain
-```
-
-### Key Concepts
-
-- **Altude does NOT replace your wallet** - it complements it
-- **Dynamic wallet handles signing** - user authentication and transaction signing
-- **Altude handles relay and gas** - submits transactions and covers fees
-- This enables gasless user experiences while preserving user control
-
-## Setup
-
-### 1. Get Your Dynamic Environment ID
-
-1. Go to [Dynamic Dashboard](https://app.dynamic.xyz)
-2. Create an account or sign in
-3. Create a new project or use an existing one
-4. Copy your Environment ID from the project settings
-5. Enable Solana wallets in your Dynamic project settings
-
-### 2. Configure Environment Variables
-
-Create a `.env` file in the root directory:
-
-```bash
-VITE_DYNAMIC_ENVIRONMENT_ID=your-dynamic-environment-id-here
-```
-
-Or copy from the example:
-
-```bash
-cp .env.example .env
-# Then edit .env with your actual environment ID
-```
+Technical reference for integrating Dynamic wallet signing with Altude's gasless relay on Solana.
 
 ## Architecture
 
-### 1. Wallet Connection (Dynamic SDK)
-- User connects their Solana wallet through Dynamic's interface
-- Dynamic supports multiple wallet providers (Phantom, Solflare, etc.)
-- Handles authentication and session management
-- Returns wallet address for transaction creation
-
-### 2. Transaction Creation
-- Application creates an unsigned Solana transaction
-- Can be any transaction type (transfer, program interaction, etc.)
-- This demo uses a simple memo transaction for clarity
-
-### 3. Transaction Signing (Dynamic Wallet)
-**Production:** Dynamic wallet provider handles this step
-- User authenticates through Dynamic
-- User approves the transaction in their wallet
-- Wallet signs the transaction
-- Returns base64-encoded signed transaction
-
-### 4. Gasless Relay (Altude)
-- Application sends signed transaction to Altude relay
-- Altude submits transaction to Solana blockchain
-- Altude covers gas fees
-- Returns transaction signature
-
-## Code Structure
-
 ```
-src/
-├── App.tsx              # Main demo interface with Dynamic integration
-└── lib/
-    ├── solana.ts        # Transaction utilities and relay functions
-    └── dynamic-wallet.ts # Type definitions for wallet adapter
+Dynamic Wallet → Signed Transaction → Altude API → Solana Blockchain
 ```
 
-### Key Components
+- **Dynamic SDK** handles wallet connection, authentication, and transaction signing
+- **Altude API** accepts signed transactions via `/api/Account/create` and `/api/Transaction/send`, covering gas fees
+- **Your app** creates the transaction and orchestrates the flow
 
-#### `DynamicContextProvider`
-Wraps the entire application and provides Dynamic wallet context.
+## Setup
 
-```typescript
+### Dynamic SDK
+
+Wrap your app with `DynamicContextProvider` and register the Solana wallet connectors:
+
+```tsx
+import { DynamicContextProvider, DynamicWidget } from '@dynamic-labs/sdk-react-core'
+import { SolanaWalletConnectors } from '@dynamic-labs/solana'
+
 <DynamicContextProvider
   settings={{
     environmentId: import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID,
@@ -94,193 +32,133 @@ Wraps the entire application and provides Dynamic wallet context.
 </DynamicContextProvider>
 ```
 
-#### `useDynamicContext` Hook
-Access wallet information and signing capabilities.
+### Wallet Access
 
-```typescript
+Use `useDynamicContext` to access the connected wallet:
+
+```tsx
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core'
+import { isSolanaWallet } from '@dynamic-labs/solana'
+
 const { primaryWallet } = useDynamicContext()
 
-// Check if connected
 const isConnected = !!primaryWallet
 const walletAddress = primaryWallet?.address
-
-// Sign transaction
-const solanaConnector = primaryWallet.connector as any
-const signedTx = await solanaConnector.signTransaction(transaction)
 ```
 
-#### `DynamicWidget`
-Pre-built UI component for wallet connection.
+## Signing Transactions
 
-```typescript
-<DynamicWidget />
-```
+Use Dynamic's `isSolanaWallet` type guard and `getSigner()` API:
 
-### Key Functions
+```tsx
+import { isSolanaWallet } from '@dynamic-labs/solana'
 
-#### `createMemoTransaction(walletAddress)`
-Creates a simple memo transaction on Solana devnet.
+if (!primaryWallet || !isSolanaWallet(primaryWallet)) return
 
-```typescript
-const { transaction, feePayer } = await createMemoTransaction(walletAddress)
-```
-
-#### Signing with Dynamic
-The app uses Dynamic's connector to sign transactions:
-
-```typescript
-const solanaConnector = primaryWallet.connector as any
-const signedTx = await solanaConnector.signTransaction(transaction)
+const signer = await primaryWallet.getSigner()
+const signedTx = await signer.signTransaction(transaction)
 const serialized = signedTx.serialize()
-const base64Transaction = serialized.toString('base64')
+const base64Transaction = Buffer.from(serialized).toString('base64')
 ```
 
-#### `relayViaAltude(base64Tx)`
-Sends signed transaction to Altude relay service.
+> **Important:** Always use `isSolanaWallet()` to verify the wallet type before calling `getSigner()`. This is the official Dynamic SDK pattern — do not cast `primaryWallet.connector` directly.
 
-**Implementation:** Real Altude API integration with fallback to mock
+## Altude API
 
-The function automatically detects if `VITE_ALTUDE_API_KEY` is configured:
-- **With API key:** Calls real Altude API at `https://api.altude.io/v1/relay`
-- **Without API key:** Falls back to mock response for testing
+Base URL: `https://api.altude.so`
 
-```typescript
-// With API key configured:
-const response = await relayViaAltude(base64Tx)
-// Calls: POST https://api.altude.io/v1/relay
-// Headers: Authorization: Bearer {VITE_ALTUDE_API_KEY}
-// Body: { signedTransaction: base64Tx, network: 'devnet' }
+All requests require the `X-API-Key` header for authentication.
 
-// Without API key:
-const response = await relayViaAltude(base64Tx)
-// Returns mock signature after 1s delay
+### Create Account
+
+Registers a gas station account for the wallet.
+
+```
+POST /api/Account/create
 ```
 
-## Integration with Real Altude API
+**Headers:**
 
-The app now includes **real Altude API integration** with automatic fallback to mock mode.
-
-### Using Real Altude API
-
-1. **Get your Altude API key** from [Altude Dashboard](https://altude.io)
-
-2. **Add to your `.env` file:**
-   ```bash
-   VITE_ALTUDE_API_KEY=your-altude-api-key-here
-   ```
-
-3. **That's it!** The app automatically uses the real API when the key is present.
-
-### How It Works
-
-The `relayViaAltude` function in `src/lib/solana.ts`:
-
-- **Checks for `VITE_ALTUDE_API_KEY`** in environment variables
-- **If present:** Calls `https://api.altude.io/v1/relay` with proper authentication
-- **If missing:** Falls back to mock response for testing without an API key
-
-### API Request Format
-
-```typescript
-POST https://api.altude.io/v1/relay
-Headers:
-  Content-Type: application/json
-  Authorization: Bearer {your-api-key}
-Body:
-  {
-    "signedTransaction": "base64-encoded-transaction",
-    "network": "devnet"
-  }
+```
+Content-Type: application/json
+X-API-Key: {your-api-key}
 ```
 
-### API Response Format
+**Request body:**
 
-```typescript
+```json
 {
-  "success": true,
-  "signature": "transaction-signature-hash",
-  "message": "Transaction relayed successfully"
+  "SignedTransaction": "base64-encoded-signed-transaction"
 }
 ```
 
-### Error Handling
+### Send Transaction
 
-The integration includes comprehensive error handling:
-- Network errors
-- API authentication errors
-- Invalid transaction format
-- Rate limiting
+Relays a signed transaction through Altude to the Solana blockchain (gasless).
 
-All errors are caught and displayed to the user with helpful messages.
-
-## Running the Demo
-
-1. Install dependencies (if not already installed):
-```bash
-npm install
+```
+POST /api/Transaction/send
 ```
 
-2. Set up your environment variables:
-```bash
-cp .env.example .env
-# Edit .env and add your Dynamic environment ID
+**Headers:**
+
+```
+Content-Type: application/json
+X-API-Key: {your-api-key}
 ```
 
-3. Start the development server:
-```bash
-npm run dev
+**Request body:**
+
+```json
+{
+  "SignedTransaction": "base64-encoded-signed-transaction"
+}
 ```
 
-4. Open your browser and follow the three-step flow:
-   - **Connect Wallet** - Use the Dynamic widget to connect a Solana wallet
-   - **Create Transaction** - Generates a Solana memo transaction
-   - **Sign Transaction** - Dynamic wallet prompts you to sign
-   - **Send Gasless** - Relays through Altude (mocked)
+> **Note:** Property names use PascalCase (`SignedTransaction`, not `signedTransaction`).
 
-## Dynamic Wallet Features
+### Example
 
-The Dynamic SDK provides:
+```typescript
+const apiKey = import.meta.env.VITE_ALTUDE_API_KEY
 
-- **Multi-wallet support**: Phantom, Solflare, Sollet, and more
-- **Email/social login**: Optional email or social authentication
-- **Session management**: Persistent wallet connections
-- **Mobile responsive**: Works on desktop and mobile
-- **Customizable UI**: Theme and branding options
+// Create account
+const createRes = await fetch('https://api.altude.so/api/Account/create', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': apiKey,
+  },
+  body: JSON.stringify({ SignedTransaction: base64Transaction }),
+})
 
-For more customization options, see the [Dynamic documentation](https://docs.dynamic.xyz).
-
-## Troubleshooting
-
-### "Environment ID not found" error
-Make sure you've created a `.env` file with your Dynamic environment ID:
-```bash
-VITE_DYNAMIC_ENVIRONMENT_ID=your-actual-id-here
+// Send transaction
+const sendRes = await fetch('https://api.altude.so/api/Transaction/send', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': apiKey,
+  },
+  body: JSON.stringify({ SignedTransaction: base64Transaction }),
+})
 ```
 
-### Wallet not appearing in Dynamic widget
-1. Check that Solana wallets are enabled in your Dynamic project settings
-2. Make sure you have a Solana wallet extension installed (e.g., Phantom)
-3. Try refreshing the page
+### Mock Fallback
 
-### Transaction signing fails
-1. Ensure your wallet is properly connected
-2. Check that you have enough SOL for the transaction (though gas is covered by Altude, some wallets require a minimum balance)
-3. Make sure you're on the correct network (devnet)
+When no API key is set for a network, the demo automatically falls back to a mock relay that simulates the API response. This lets you test the full wallet → sign → relay flow without an Altude account.
 
-## Learn More
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_DYNAMIC_ENVIRONMENT_ID` | Yes | Your Dynamic project environment ID |
+| `VITE_ALTUDE_API_KEY_DEVNET` | No | Altude API key for Devnet (falls back to mock if omitted) |
+| `VITE_ALTUDE_API_KEY_MAINNET` | No | Altude API key for Mainnet (falls back to mock if omitted) |
+| `VITE_TOKEN_MINT` | No | SPL token mint address — enables ATA creation and Send Transaction |
+
+## Further Reading
 
 - [Dynamic Documentation](https://docs.dynamic.xyz)
-- [Dynamic Solana Guide](https://docs.dynamic.xyz/chains/solana)
-- [Altude Documentation](https://docs.altude.io)
-- [Solana Web3.js Documentation](https://solana-labs.github.io/solana-web3.js/)
+- [Altude Documentation](https://docs.altude.so)
+- [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/)
 
-## Next Steps
-
-- [x] Integrate with real Dynamic wallet SDK
-- [x] Connect to real Altude API endpoint with automatic fallback
-- [ ] Add real transaction types (transfers, program interactions)
-- [ ] Implement error handling and retry logic
-- [ ] Add transaction status polling
-- [ ] Support multiple networks (devnet, mainnet)
-- [ ] Add transaction history
-- [ ] Implement rate limiting
