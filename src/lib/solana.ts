@@ -1,16 +1,18 @@
 import {
-  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
-  clusterApiUrl,
 } from '@solana/web3.js'
 import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountIdempotentInstruction,
+  createInitializeAccount3Instruction,
   createSetAuthorityInstruction,
   AuthorityType,
+  TOKEN_PROGRAM_ID,
+  ACCOUNT_SIZE,
+  NATIVE_MINT,
 } from '@solana/spl-token'
 import { Buffer } from 'buffer'
 
@@ -18,10 +20,6 @@ export type SolanaNetwork = 'devnet' | 'mainnet-beta'
 
 const ALTUDE_API_BASE = 'https://api.altude.so'
 const ALTUDE_FEE_PAYER = 'ALTn7gyjm29WthZGgs4z6WVAK2PK5U6w4FAtPg3TPY71'
-
-export function getConnection(network: SolanaNetwork): Connection {
-  return new Connection(clusterApiUrl(network), 'confirmed')
-}
 
 export function getTokenMint(): string | undefined {
   return import.meta.env.VITE_TOKEN_MINT || undefined
@@ -37,45 +35,66 @@ export async function createAccountTransaction(
   walletPublicKey: string,
   network: SolanaNetwork = 'devnet'
 ): Promise<CreateTransactionResult> {
-  const connection = getConnection(network)
   const feePayer = new PublicKey(ALTUDE_FEE_PAYER)
   const userWallet = new PublicKey(walletPublicKey)
   const newAccount = Keypair.generate()
 
-  const lamports = await connection.getMinimumBalanceForRentExemption(0)
+  const mintAddress = getTokenMint()
+  const customMint = mintAddress ? new PublicKey(mintAddress) : null
+  // Always use a mint for the parent account — default to native SOL mint (wrapped SOL)
+  const parentMint = customMint ?? NATIVE_MINT
 
+  // Rent exemption for a 165-byte token account is 2039280 lamports
+  const lamports = 2039280
+
+  // 1. Create the account owned by the Token Program
   const createAccountInstruction = SystemProgram.createAccount({
     fromPubkey: feePayer,
     newAccountPubkey: newAccount.publicKey,
     lamports,
-    space: 0,
-    programId: SystemProgram.programId,
+    space: ACCOUNT_SIZE,
+    programId: TOKEN_PROGRAM_ID,
   })
 
-  // Altude requires a SetAuthority instruction to transfer ownership to the fee payer
-  const setAuthorityInstruction = createSetAuthorityInstruction(
-    newAccount.publicKey,      // account
-    newAccount.publicKey,      // current authority
-    AuthorityType.AccountOwner, // authority type
-    feePayer,                  // new authority
+  // 2. Initialize as a token account (mint + owner = user wallet)
+  const initInstruction = createInitializeAccount3Instruction(
+    newAccount.publicKey,
+    parentMint,
+    userWallet,
+  )
+
+  // 3. Set close authority to fee payer — prevents rent theft on parent account
+  const setCloseAuthParent = createSetAuthorityInstruction(
+    newAccount.publicKey,
+    userWallet,
+    AuthorityType.CloseAccount,
+    feePayer,
   )
 
   const transaction = new Transaction()
   transaction.add(createAccountInstruction)
-  transaction.add(setAuthorityInstruction)
+  transaction.add(initInstruction)
+  transaction.add(setCloseAuthParent)
 
-  // If a token mint is configured, create the user's ATA for it
-  const mintAddress = getTokenMint()
-  if (mintAddress) {
-    const mint = new PublicKey(mintAddress)
-    const ata = getAssociatedTokenAddressSync(mint, userWallet)
+  // If a custom mint is configured, also create the user's ATA
+  if (customMint) {
+    const ata = getAssociatedTokenAddressSync(customMint, userWallet)
     const ataInstruction = createAssociatedTokenAccountIdempotentInstruction(
-      feePayer,    // payer
-      ata,         // associated token account
-      userWallet,  // owner
-      mint,        // mint
+      feePayer,
+      ata,
+      userWallet,
+      customMint,
     )
     transaction.add(ataInstruction)
+
+    // Set close authority on ATA to fee payer — prevents rent theft on ATA
+    const setCloseAuthAta = createSetAuthorityInstruction(
+      ata,
+      userWallet,
+      AuthorityType.CloseAccount,
+      feePayer,
+    )
+    transaction.add(setCloseAuthAta)
   }
 
   transaction.feePayer = feePayer

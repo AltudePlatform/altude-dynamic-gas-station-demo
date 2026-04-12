@@ -143,9 +143,141 @@ The demo walks through a 4-step flow:
         └──────────────┘
 ```
 
-## Integration
+## Integration Code
 
-See **[INTEGRATION.md](./INTEGRATION.md)** for detailed API documentation, code examples, and integration patterns for using Altude in your own app.
+The snippets below show every piece needed to wire up Dynamic + Altude in your own app. See **[INTEGRATION.md](./INTEGRATION.md)** for the full API reference.
+
+### 1. Wrap your app with Dynamic
+
+```tsx
+import { DynamicContextProvider, DynamicWidget } from '@dynamic-labs/sdk-react-core'
+import { SolanaWalletConnectors } from '@dynamic-labs/solana'
+
+function App() {
+  return (
+    <DynamicContextProvider
+      settings={{
+        environmentId: import.meta.env.VITE_DYNAMIC_ENVIRONMENT_ID,
+        walletConnectors: [SolanaWalletConnectors],
+      }}
+    >
+      <DynamicWidget />
+      <YourApp />
+    </DynamicContextProvider>
+  )
+}
+```
+
+### 2. Access the connected wallet
+
+```tsx
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core'
+import { isSolanaWallet } from '@dynamic-labs/solana'
+
+const { primaryWallet, user } = useDynamicContext()
+const walletAddress = primaryWallet?.address
+```
+
+### 3. Build the transaction with Altude as fee payer
+
+Altude's public fee payer signs last on its backend — you set it as `feePayer` and fetch a blockhash from Altude's API:
+
+```tsx
+import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
+import { ACCOUNT_SIZE, TOKEN_PROGRAM_ID, NATIVE_MINT,
+         createInitializeAccount3Instruction, createSetAuthorityInstruction,
+         AuthorityType } from '@solana/spl-token'
+
+const ALTUDE_FEE_PAYER = new PublicKey('ALTn7gyjm29WthZGgs4z6WVAK2PK5U6w4FAtPg3TPY71')
+
+// Fetch a recent blockhash from Altude
+const res = await fetch('https://api.altude.so/api/Transaction/blockhash', {
+  headers: { 'X-API-Key': ALTUDE_API_KEY },
+})
+const { Blockhash } = await res.json()
+
+const newAccount = Keypair.generate()
+const userWallet = new PublicKey(walletAddress)
+
+const tx = new Transaction()
+tx.add(
+  SystemProgram.createAccount({
+    fromPubkey: ALTUDE_FEE_PAYER,
+    newAccountPubkey: newAccount.publicKey,
+    lamports: 2039280,
+    space: ACCOUNT_SIZE,
+    programId: TOKEN_PROGRAM_ID,
+  }),
+  createInitializeAccount3Instruction(newAccount.publicKey, NATIVE_MINT, userWallet),
+  createSetAuthorityInstruction(
+    newAccount.publicKey, userWallet, AuthorityType.CloseAccount, ALTUDE_FEE_PAYER,
+  ),
+)
+tx.feePayer = ALTUDE_FEE_PAYER
+tx.recentBlockhash = Blockhash
+
+// Partial-sign with the ephemeral keypair (required signer for createAccount)
+tx.partialSign(newAccount)
+```
+
+### 4. Sign with the Dynamic wallet
+
+Dynamic's wallet adapter may drop previously applied `partialSign` signatures, so re-apply them after signing:
+
+```tsx
+import { isSolanaWallet } from '@dynamic-labs/solana'
+
+if (!primaryWallet || !isSolanaWallet(primaryWallet)) return
+
+const signer = await primaryWallet.getSigner()
+const signed = await signer.signTransaction(tx)
+
+// Re-apply the ephemeral keypair signature if the wallet adapter dropped it
+const newAccountSig = signed.signatures.find(
+  (s) => s.publicKey.equals(newAccount.publicKey)
+)
+if (!newAccountSig?.signature) {
+  signed.partialSign(newAccount)
+}
+
+const base64Tx = Buffer.from(
+  signed.serialize({ verifySignatures: false })
+).toString('base64')
+```
+
+### 5. Send to Altude
+
+Register the gas station account, then relay the transaction — Altude adds its fee payer signature and submits to Solana:
+
+```tsx
+const headers = {
+  'Content-Type': 'application/json',
+  'X-API-Key': ALTUDE_API_KEY,
+}
+const body = JSON.stringify({ SignedTransaction: base64Tx })
+
+// Register the account
+const createRes = await fetch('https://api.altude.so/api/Account/create', {
+  method: 'POST', headers, body,
+})
+const { Signature } = await createRes.json()
+
+// Relay a transaction (gasless)
+const sendRes = await fetch('https://api.altude.so/api/Transaction/send', {
+  method: 'POST', headers, body,
+})
+```
+
+### End-to-end flow summary
+
+```
+Dynamic sign-in → Embedded wallet created
+    → Build tx (Altude = feePayer, partialSign ephemeral keypair)
+    → Wallet signs (re-apply partialSign if dropped)
+    → POST to Altude /api/Account/create
+    → POST to Altude /api/Transaction/send
+    → Altude co-signs + relays → on-chain ✓
+```
 
 ## Tech Stack
 

@@ -9,6 +9,7 @@ import {
   useDynamicContext,
 } from '@dynamic-labs/sdk-react-core'
 import { SolanaWalletConnectors } from '@dynamic-labs/solana'
+import { isSolanaWallet } from '@dynamic-labs/solana'
 import {
   createAccountTransaction,
   createAccount,
@@ -128,6 +129,7 @@ function DemoContent() {
   const [createAccountResponse, setCreateAccountResponse] = useState<AltudeApiResponse | null>(null)
   const [sendResponse, setSendResponse] = useState<AltudeApiResponse | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSigning, setIsSigning] = useState(false)
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [showDecoded, setShowDecoded] = useState(false)
@@ -137,7 +139,7 @@ function DemoContent() {
   const walletReady = !!primaryWallet
   const walletAddress = primaryWallet?.address || null
 
-  const currentStep = !signedTxBase64 ? 1 : !createAccountResponse ? 2 : !sendResponse ? 3 : 4
+  const currentStep = !transaction ? 1 : !signedTxBase64 ? 2 : !createAccountResponse ? 3 : !sendResponse ? 4 : 5
 
   const handleCreateTransaction = async () => {
     if (!walletAddress) return
@@ -145,21 +147,46 @@ function DemoContent() {
     try {
       const result = await createAccountTransaction(walletAddress, network)
       setTransaction(result)
-      // Serialize immediately — no user signing needed (feePayer signs server-side)
-      const serialized = result.transaction.serialize({ verifySignatures: false })
-      const base64Transaction = Buffer.from(serialized).toString('base64')
-      setSignedTxBase64(base64Transaction)
-      const decoded = decodeTransaction(base64Transaction)
-      setDecodedTxText(formatDecodedTransaction(decoded))
+      setSignedTxBase64(null)
+      setDecodedTxText(null)
       setCreateAccountResponse(null)
       setSendResponse(null)
       setShowDecoded(false)
-      toast.success('Transaction created')
+      toast.success('Transaction created — sign with your wallet')
     } catch (error) {
       toast.error('Failed to create transaction')
       console.error(error)
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  const handleSignTransaction = async () => {
+    if (!transaction || !primaryWallet || !isSolanaWallet(primaryWallet)) return
+    setIsSigning(true)
+    try {
+      const signer = await primaryWallet.getSigner()
+      const signed = await signer.signTransaction(transaction.transaction as any)
+
+      // Re-apply newAccount partial signature if the wallet adapter dropped it
+      const newAccountSig = signed.signatures.find(
+        (s: any) => s.publicKey.equals(transaction.newAccount.publicKey)
+      )
+      if (!newAccountSig?.signature) {
+        signed.partialSign(transaction.newAccount)
+      }
+
+      const serialized = signed.serialize({ verifySignatures: false })
+      const base64Transaction = Buffer.from(serialized).toString('base64')
+      setSignedTxBase64(base64Transaction)
+      const decoded = decodeTransaction(base64Transaction)
+      setDecodedTxText(formatDecodedTransaction(decoded))
+      toast.success('Transaction signed')
+    } catch (error) {
+      toast.error('Failed to sign transaction')
+      console.error(error)
+    } finally {
+      setIsSigning(false)
     }
   }
 
@@ -331,9 +358,11 @@ function DemoContent() {
             <div className="flex items-start px-10 py-8 rounded-xl bg-card border border-border">
               <StepIndicator number={1} label="Create" active={currentStep === 1} done={currentStep > 1} />
               <StepConnector done={currentStep > 1} />
-              <StepIndicator number={2} label="Register" active={currentStep === 2} done={currentStep > 2} />
+              <StepIndicator number={2} label="Sign" active={currentStep === 2} done={currentStep > 2} />
               <StepConnector done={currentStep > 2} />
-              <StepIndicator number={3} label="Send" active={currentStep === 3} done={currentStep > 3} />
+              <StepIndicator number={3} label="Register" active={currentStep === 3} done={currentStep > 3} />
+              <StepConnector done={currentStep > 3} />
+              <StepIndicator number={4} label="Send" active={currentStep === 4} done={currentStep > 4} />
             </div>
 
             {/* Action cards */}
@@ -404,11 +433,36 @@ function DemoContent() {
                 </div>
               )}
 
-              {/* Step 2 */}
-              <div className={`rounded-xl border bg-card px-10 py-10 space-y-8 transition-opacity ${!signedTxBase64 ? 'opacity-40 pointer-events-none' : ''} border-border`}>
+              {/* Step 2 — Sign */}
+              <div className={`rounded-xl border bg-card px-10 py-10 space-y-8 transition-opacity ${!transaction || signedTxBase64 ? 'opacity-40 pointer-events-none' : ''} border-border`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <span className="text-xs font-mono text-muted-foreground">02</span>
+                    <span className="text-sm font-medium">Sign with Wallet</span>
+                  </div>
+                  {signedTxBase64 && <Badge variant="outline" className="text-xs text-primary border-primary/30">Signed</Badge>}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your wallet signs to authorize the close-authority transfer.
+                </p>
+                <div className="flex justify-center py-8">
+                  <Button
+                    onClick={handleSignTransaction}
+                    disabled={!transaction || !!signedTxBase64 || isSigning}
+                    size="lg"
+                    variant="secondary"
+                    style={{ padding: '14px 40px' }}
+                  >
+                    {isSigning ? 'Signing...' : 'Sign Transaction'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Step 3 — Register */}
+              <div className={`rounded-xl border bg-card px-10 py-10 space-y-8 transition-opacity ${!signedTxBase64 ? 'opacity-40 pointer-events-none' : ''} border-border`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-muted-foreground">03</span>
                     <span className="text-sm font-medium">Create Account via Altude</span>
                   </div>
                   {createAccountResponse && <Badge variant="outline" className="text-xs text-primary border-primary/30">Registered</Badge>}
@@ -430,11 +484,11 @@ function DemoContent() {
                 {createAccountResponse && <ResponseCard response={createAccountResponse} label="Account Registered" />}
               </div>
 
-              {/* Step 3 */}
+              {/* Step 4 — Send */}
               <div className={`rounded-xl border bg-card px-10 py-10 space-y-8 transition-opacity ${!signedTxBase64 ? 'opacity-40 pointer-events-none' : ''} border-border`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <span className="text-xs font-mono text-muted-foreground">03</span>
+                    <span className="text-xs font-mono text-muted-foreground">04</span>
                     <span className="text-sm font-medium">Send via Altude Relay</span>
                   </div>
                   {sendResponse && <Badge variant="outline" className="text-xs text-primary border-primary/30">Sent</Badge>}
@@ -489,12 +543,6 @@ function App() {
         walletConnectors: [SolanaWalletConnectors],
         overrides: {
           evmNetworks: () => [],
-          solNetworks: (networks) =>
-            networks.map((n) => ({
-              ...n,
-              rpcUrls: ['https://api.devnet.solana.com'],
-              privateCustomerRpcUrls: [],
-            })),
         },
       }}
     >
