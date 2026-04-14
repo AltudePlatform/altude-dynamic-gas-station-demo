@@ -10,7 +10,7 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "@dynamic-labs/sdk-react-core": "^4.76.0",
+        "@dynamic-labs/sdk-react-core": "^4.77.1",
         "@dynamic-labs/solana": "^4.76.0",
         "@phosphor-icons/react": "^2.1.7",
         "@radix-ui/colors": "^3.0.0",
