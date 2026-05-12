@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@dynamic-labs/sdk-react-core": "^4.81.0",
-        "@dynamic-labs/solana": "^4.81.0",
+        "@dynamic-labs/solana": "^4.83.0",
         "@phosphor-icons/react": "^2.1.7",
         "@radix-ui/colors": "^3.0.0",
         "@radix-ui/react-scroll-area": "^1.2.9",
