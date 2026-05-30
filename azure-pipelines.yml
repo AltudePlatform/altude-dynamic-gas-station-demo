@@ -1,0 +1,151 @@
+trigger:
+- main
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  system.debug: $(debug)
+  group: AltudeCIVault
+  
+  azureServicePrincipalId: '$(AZURE_CLIENT_ID)' # Replace with your service principal client ID if not using secrets
+  azureServicePrincipalKey: '$(AZURE_CLIENT_SECRET)' # Replace with your service principal client secret if not using secrets
+  azureTenantId: '$(AZURE_TENANT_ID)' # Replace with your tenant ID if not using secrets
+
+
+stages:
+- stage: 'Build'
+  displayName: 'Build the web application'
+  jobs: 
+  - job: 'Build'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: 'Install Node.js'
+
+    - task: replacetokens@6
+      inputs:
+        root: '$(Build.SourcesDirectory)/altude-public-website/src/environments/'
+        sources: '**/*.ts'
+        addBOM: true
+        tokenPrefix: '#{'
+        tokenSuffix: '}#'
+
+    - task: CmdLine@2
+      inputs:
+        script:
+          npm install -g @angular/cli verbose
+        workingDirectory: './altude-public-website'
+      displayName: 'install agent deps'
+
+    - task: CmdLine@2
+      inputs:
+        script: 'npm install --legacy-peer-deps'
+        workingDirectory: './altude-public-website'
+      displayName: 'Npm Install deps for - $(buildConfiguration)'
+
+    - task: CmdLine@2
+      inputs:
+        script: 'npm run build --prod'
+        workingDirectory: './altude-public-website'
+      displayName: 'Build the project - $(buildConfiguration)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: './altude-public-website/dist'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+    # Include additional steps for testing, caching, or other build processes
+- stage: 'Test'
+  displayName: 'Deploy to test'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: 'TestDeploy'
+    steps:
+      - download: current
+        artifact: drop
+      - task: PowerShell@2
+        inputs:
+          targetType: 'inline'
+          script: |
+            $asciiArt = @"                                                                                                              
+            888888888888  88888888888  ad88888ba  888888888888     88888888ba,    88888888888  88888888ba   88           ,ad8888ba,  8b        d8  
+                  88       88          d8"     "8b      88          88      `"8b   88           88      "8b  88          d8"'    `"8b  Y8,    ,8P   
+                  88       88          Y8,              88          88        `8b  88           88      ,8P  88         d8'        `8b  Y8,  ,8P    
+                  88       88aaaaa     `Y8aaaaa,        88          88         88  88aaaaa      88aaaaaa8P'  88         88          88   "8aa8"     
+                  88       88"""""       `"""""8b,      88          88         88  88"""""      88""""""'    88         88          88    `88'      
+                  88       88                  `8b      88          88         8P  88           88           88         Y8,        ,8P     88       
+                  88       88          Y8a     a8P      88          88      .a8P   88           88           88          Y8a.    .a8P      88       
+                  88       88888888888  "Y88888P"       88          88888888Y"'    88888888888  88           88888888888  `"Y8888Y"'       88 
+            "@
+            Write-Host $asciiArt
+
+- stage: 'Prod'
+  displayName: 'Deploy to the prod environment'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: 'ProductionDeploy'
+    steps:
+      - download: current
+        artifact: drop
+      - task: PowerShell@2
+        inputs:
+          targetType: 'inline'
+          script: |
+            $asciiArt = @"            
+            88888888ba   88888888ba     ,ad8888ba,    88888888ba,       88888888ba,    88888888888  88888888ba   88           ,ad8888ba,  8b        d8  
+            88      "8b  88      "8b   d8"'    `"8b   88      `"8b      88      `"8b   88           88      "8b  88          d8"'    `"8b  Y8,    ,8P   
+            88      ,8P  88      ,8P  d8'        `8b  88        `8b     88        `8b  88           88      ,8P  88         d8'        `8b  Y8,  ,8P    
+            88aaaaaa8P'  88aaaaaa8P'  88          88  88         88     88         88  88aaaaa      88aaaaaa8P'  88         88          88   "8aa8"     
+            88""""""'    88""""88'    88          88  88         88     88         88  88"""""      88""""""'    88         88          88    `88'      
+            88           88    `8b    Y8,        ,8P  88         8P     88         8P  88           88           88         Y8,        ,8P     88       
+            88           88     `8b    Y8a.    .a8P   88      .a8P      88      .a8P   88           88           88          Y8a.    .a8P      88       
+            88           88      `8b    `"Y8888Y"'    88888888Y"'       88888888Y"'    88888888888  88           88888888888  `"Y8888Y"'       88       
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+                                                                                                                                                        
+            88           ,ad8888ba,  888888888888  88b           d88                                                                                    
+            88          d8"'    `"8b      88       888b         d888                                                                                    
+            88         d8'                88       88`8b       d8'88                                                                                    
+            88         88                 88       88 `8b     d8' 88                                                                                    
+            88         88      88888      88       88  `8b   d8'  88                                                                                    
+            88         Y8,        88      88       88   `8b d8'   88                                                                                    
+            88          Y8a.    .a88      88       88    `888'    88                                                                                    
+            88888888888  `"Y88888P"       88       88     `8'     88 
+            "@
+            Write-Host $asciiArt
+
+      - task: AzureCLI@2
+        displayName: 'Upload files to Azure Blob Storage for website'
+        inputs:
+          azureSubscription: '7decefb2-701f-4033-a647-cc3f6a3fdf6e' # Replace with your Azure service connection name
+          scriptType: 'ps'  # Use PowerShell syntax
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            $sourcePath = "$(Pipeline.Workspace)\drop\altude-public-website\browser"
+            
+            # Log in using the service principal
+            az login --service-principal -u $(AZURE_CLIENT_ID) -p $(AZURE_CLIENT_SECRET) --tenant $(AZURE_TENANT_ID)
+            
+            # Upload files using az storage blob upload-batch
+            az storage blob upload-batch --account-name altudepublicwebsite --destination '$web' --source $sourcePath --auth-mode login --overwrite
+
+        env:
+          AZURE_CLIENT_ID: $(azureServicePrincipalId)
+          AZURE_CLIENT_SECRET: $(azureServicePrincipalKey)
+          AZURE_TENANT_ID: $(azureTenantId)
