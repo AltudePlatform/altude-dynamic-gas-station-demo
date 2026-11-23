@@ -37,8 +37,10 @@ A reference demo showing how [Dynamic](https://dynamic.xyz) embedded wallets int
 ```bash
 git clone https://github.com/AltudePlatform/altude-dynamic-gas-station-demo.git
 cd altude-dynamic-gas-station-demo
-npm install
+npm install --legacy-peer-deps
 ```
+
+> `--legacy-peer-deps` is required: some dev tooling has peer-dependency ranges that npm can't resolve strictly. CI (`azure-pipelines.yml`) installs the same way.
 
 ### 2. Get your Dynamic Environment ID
 
@@ -49,13 +51,21 @@ You need a **Dynamic Environment ID** to power the wallet and authentication.
 3. In the left sidebar, go to **Developer** → **SDK & API Keys**
 4. Copy your **Environment ID** — it looks like `1ff61056-b242-40e6-88be-a85a1ce4549b`
 
-> **Important:** Make sure Solana is enabled for your project. In your Dynamic dashboard, go to **Chains and Networks** and turn on **Solana**.
+> **Important — configure your Dynamic project for Solana only:**
+>
+> 1. Go to **Chains & Networks** and turn on **SVM** (this is Solana).
+> 2. Expand **SVM** and set an **RPC endpoint** for each enabled network, otherwise the embedded wallet never finishes provisioning ("Setting up your wallet" hangs). The public endpoints work for testing:
+>    - Solana Devnet: `https://api.devnet.solana.com`
+>    - Solana Mainnet: `https://api.mainnet-beta.solana.com`
+>
+>    Disable any SVM network you don't set an RPC for (e.g. Testnet).
+> 3. Turn **EVM** off. This demo only loads Dynamic's Solana connectors, so if EVM is enabled, sign-up fails with `Dynamic Waas connector not found`.
 
 ### 3. Get your Altude API Keys
 
 You need **Altude API Keys** to relay transactions gaslessly. You can configure separate keys for Devnet and Mainnet.
 
-1. Go to [**app.altude.so**](https://app.altude.so) and sign up or log in
+1. Go to [**dashboard.altude.so**](https://dashboard.altude.so) and sign up or log in
 2. Navigate to **API Keys** in your dashboard
 3. Create an API key for **Devnet** and/or **Mainnet**
 4. Copy each key — they look like `ak_6B0v1aH5B2QNEvg3VHZ-PJGWFLAT7TYhKIiqKIwNiS8`
@@ -78,7 +88,7 @@ Open `.env` and paste your credentials:
 # Required — Get this from https://app.dynamic.xyz
 VITE_DYNAMIC_ENVIRONMENT_ID=your-environment-id-here
 
-# Altude API Keys — Get these from https://app.altude.so
+# Altude API Keys — Get these from https://dashboard.altude.so
 # Set one or both depending on which networks you want to use
 VITE_ALTUDE_API_KEY_DEVNET=your-devnet-api-key-here
 VITE_ALTUDE_API_KEY_MAINNET=your-mainnet-api-key-here
@@ -97,6 +107,8 @@ npm run dev
 ```
 
 Open [**http://localhost:5000**](http://localhost:5000) in your browser.
+
+> On macOS, port 5000 is often taken by the AirPlay Receiver. Vite will then pick the next free port (e.g. `5001`) — use the URL it prints.
 
 ---
 
@@ -307,7 +319,11 @@ src/
 |---------|----------|
 | Wallet widget not showing | Verify `VITE_DYNAMIC_ENVIRONMENT_ID` is set correctly in `.env` |
 | "Environment ID not found" | Create `.env` file — run `cp .env.example .env` and add your Dynamic ID |
-| Transaction signing fails | Make sure your Dynamic project has **Solana** enabled under Chains and Networks |
+| Transaction signing fails | Make sure your Dynamic project has **SVM** (Solana) enabled under Chains & Networks |
+| Stuck on "Setting up your wallet" | Set an RPC endpoint for each enabled SVM network in Dynamic → Chains & Networks, then log out and sign in again |
+| `Dynamic Waas connector not found` (EVM) | Turn **EVM** off in Dynamic → Chains & Networks, then log out and sign in again (or delete the test user under **Users**) |
+| `npm install` fails with `ERESOLVE` | Use `npm install --legacy-peer-deps` |
+| "Failed to create transaction" / `reading 'toBase58'` | `@solana/web3.js` must be v1. Run `npm install --legacy-peer-deps`, then restart the dev server with `npx vite --force` to clear Vite's dependency cache |
 | API returns 401 | Check that `VITE_ALTUDE_API_KEY_DEVNET` or `VITE_ALTUDE_API_KEY_MAINNET` is correct and active |
 | Network shows "(no key)" | That network has no API key configured — add the matching `VITE_ALTUDE_API_KEY_*` to `.env` |
 | App shows mock mode | You're missing the API key for the selected network — check your `.env` |
