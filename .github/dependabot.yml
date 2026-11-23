@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      # @solana/web3.js v2+ is a breaking rewrite (async Keypair/signing APIs) and
+      # @solana/spl-token 0.4.x requires web3.js ^1.95.5. Stay on v1 until the
+      # app is migrated.
+      - dependency-name: "@solana/web3.js"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "devcontainers"
     directory: "/"
